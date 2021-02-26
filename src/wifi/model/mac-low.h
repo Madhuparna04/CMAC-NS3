@@ -524,7 +524,9 @@ private:
    * \return TXVECTOR for the RTS of the given item
    */
   WifiTxVector GetRtsTxVector (Ptr<const WifiMacQueueItem> item) const;
-  /**
+  WifiTxVector GetHrfTxVector (Mac48Address to, WifiMode rtsTxMode) const;
+
+    /**
    * Return a TXVECTOR for the CTS frame given the destination and the mode of the RTS
    * used by the sender.
    * The function consults WifiRemoteStationManager, which controls the rate
@@ -704,6 +706,10 @@ private:
    * Send CTS for a CTS-to-self mechanism.
    */
   void SendCtsToSelf (void);
+  /**
+   * Send HRF Packet.
+   * */
+  void SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, double rtsSnr);
   /**
    * Send CTS after receiving RTS.
    *

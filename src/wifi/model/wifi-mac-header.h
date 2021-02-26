@@ -43,6 +43,7 @@ enum WifiMacType
   WIFI_MAC_CTL_BACKRESP,
   WIFI_MAC_CTL_END,
   WIFI_MAC_CTL_END_ACK,
+  WIFI_MAC_CTL_HRF,
 
   WIFI_MAC_MGT_BEACON,
   WIFI_MAC_MGT_ASSOCIATION_REQUEST,
@@ -118,7 +119,6 @@ public:
   uint32_t GetSerializedSize (void) const;
   void Serialize (Buffer::Iterator start) const;
   uint32_t Deserialize (Buffer::Iterator start);
-
   /**
    * Set the From DS bit in the Frame Control field.
    */
@@ -362,6 +362,8 @@ public:
    * \return true if the header is a RTS header, false otherwise
    */
   bool IsRts (void) const;
+  // HRF
+  bool IsHrf (void) const;
   /**
    * Return true if the header is a CTS header.
    *

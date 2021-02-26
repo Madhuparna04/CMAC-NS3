@@ -47,7 +47,8 @@ enum
   SUBTYPE_CTL_CTS = 12,
   SUBTYPE_CTL_ACK = 13,
   SUBTYPE_CTL_END = 14,
-  SUBTYPE_CTL_END_ACK = 15
+  SUBTYPE_CTL_END_ACK = 15,
+  SUBTYPE_CTL_HRF = 10,
 };
 
 WifiMacHeader::WifiMacHeader ()
@@ -138,6 +139,10 @@ WifiMacHeader::SetType (WifiMacType type, bool resetToDsFromDs)
     case WIFI_MAC_CTL_ACK:
       m_ctrlType = TYPE_CTL;
       m_ctrlSubtype = SUBTYPE_CTL_ACK;
+      break;
+    case WIFI_MAC_CTL_HRF:
+      m_ctrlType = TYPE_CTL;
+      m_ctrlSubtype = SUBTYPE_CTL_HRF;
       break;
     case WIFI_MAC_CTL_END:
       m_ctrlType = TYPE_CTL;
@@ -418,7 +423,7 @@ WifiMacHeader::GetAddr4 (void) const
 WifiMacType
 WifiMacHeader::GetType (void) const
 {
-  switch (m_ctrlType)
+    switch (m_ctrlType)
     {
     case TYPE_MGT:
       switch (m_ctrlSubtype)
@@ -462,6 +467,8 @@ WifiMacHeader::GetType (void) const
           return WIFI_MAC_CTL_RTS;
         case SUBTYPE_CTL_CTS:
           return WIFI_MAC_CTL_CTS;
+        case SUBTYPE_CTL_HRF:
+            return WIFI_MAC_CTL_HRF;
         case SUBTYPE_CTL_ACK:
           return WIFI_MAC_CTL_ACK;
         case SUBTYPE_CTL_END:
@@ -620,6 +627,12 @@ bool
 WifiMacHeader::IsRts (void) const
 {
   return (GetType () == WIFI_MAC_CTL_RTS);
+}
+
+bool
+WifiMacHeader::IsHrf (void) const
+{
+    return (GetType () == WIFI_MAC_CTL_HRF);
 }
 
 bool
@@ -905,6 +918,7 @@ WifiMacHeader::GetSize (void) const
           size = 2 + 2 + 6 + 6;
           break;
         case SUBTYPE_CTL_CTS:
+        case SUBTYPE_CTL_HRF:
         case SUBTYPE_CTL_ACK:
           size = 2 + 2 + 6;
           break;
@@ -940,6 +954,7 @@ case WIFI_MAC_ ## x: \
     {
       FOO (CTL_RTS);
       FOO (CTL_CTS);
+      FOO (CTL_HRF);
       FOO (CTL_ACK);
       FOO (CTL_BACKREQ);
       FOO (CTL_BACKRESP);
@@ -1134,6 +1149,7 @@ WifiMacHeader::Serialize (Buffer::Iterator i) const
           WriteTo (i, m_addr2);
           break;
         case SUBTYPE_CTL_CTS:
+        case SUBTYPE_CTL_HRF:
         case SUBTYPE_CTL_ACK:
           break;
         default:

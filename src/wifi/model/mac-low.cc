@@ -754,6 +754,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
 
   bool isPrevNavZero = IsNavZero ();
   NS_LOG_DEBUG ("duration/id=" << hdr.GetDuration ());
+    NS_LOG_INFO(" Packet is hrf in receive ok" + std::to_string(hdr.m_ctrlSubtype));
   NotifyNav (packet, hdr);
   if (hdr.IsRts ())
     {
@@ -776,12 +777,21 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
               NS_ASSERT (m_sendCtsEvent.IsExpired ());
               m_stationManager->ReportRxOk (hdr.GetAddr2 (), &hdr,
                                             rxSnr, txVector.GetMode ());
+              /*
               m_sendCtsEvent = Simulator::Schedule (GetSifs (),
                                                     &MacLow::SendCtsAfterRts, this,
                                                     hdr.GetAddr2 (),
                                                     hdr.GetDuration (),
                                                     txVector,
                                                     rxSnr);
+              */
+              m_sendCtsEvent = Simulator::Schedule (GetSifs (),
+                                                      &MacLow::SendHrf, this,
+                                                      hdr.GetAddr2 (),
+                                                      hdr.GetDuration (),
+                                                      txVector,
+                                                      rxSnr);
+
             }
           else
             {
@@ -789,6 +799,12 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
             }
         }
     }
+  else if(hdr.IsHrf ())
+  {
+      NS_LOG_INFO(" Packet is hrf");
+
+      return;
+  }
   else if (hdr.IsCts ()
            && hdr.GetAddr1 () == m_self
            && m_ctsTimeoutEvent.IsRunning ()
@@ -1366,6 +1382,22 @@ MacLow::GetCtsTxVector (Mac48Address to, WifiMode rtsTxMode) const
 }
 
 WifiTxVector
+MacLow::GetHrfTxVector (Mac48Address to, WifiMode rtsTxMode) const
+{
+    NS_ASSERT (!to.IsGroup ());
+    WifiMode hrfMode = GetControlAnswerMode (rtsTxMode);
+    WifiTxVector v;
+    v.SetMode (hrfMode);
+    v.SetPreambleType (GetPreambleForTransmission (hrfMode.GetModulationClass (), m_stationManager->GetShortPreambleEnabled (), m_stationManager->UseGreenfieldForDestination (to)));
+    v.SetTxPowerLevel (m_stationManager->GetDefaultTxPowerLevel ());
+    v.SetChannelWidth (GetChannelWidthForTransmission (hrfMode, m_phy->GetChannelWidth ()));
+    uint16_t hrfTxGuardInterval = ConvertGuardIntervalToNanoSeconds (hrfMode, m_phy->GetShortGuardInterval (), m_phy->GetGuardInterval ());
+    v.SetGuardInterval (hrfTxGuardInterval);
+    v.SetNss (1);
+    return v;
+}
+
+WifiTxVector
 MacLow::GetAckTxVector (Mac48Address to, WifiMode dataTxMode) const
 {
   NS_ASSERT (!to.IsGroup ());
@@ -1660,7 +1692,12 @@ MacLow::ForwardDown (Ptr<const WifiPsdu> psdu, WifiTxVector txVector)
             }
         }
     }
-  m_phy->SendPacket (psdu->GetPacket (), txVector);
+    NS_LOG_INFO(" Packet is being sent");
+    psdu->GetPacket ();
+    NS_LOG_INFO(" Packet is beingrvrfr");
+
+    m_phy->SendPacket (psdu->GetPacket (), txVector);
+    NS_LOG_INFO(" Packet is sent");
 }
 
 void
@@ -2007,6 +2044,47 @@ MacLow::SendCtsToSelf (void)
                                          duration);
 }
 
+
+void
+MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, double rtsSnr)
+{
+    NS_LOG_FUNCTION (this << source << duration << rtsTxVector.GetMode () << rtsSnr);
+    /* send Hrf after CTS and RTS
+     * right after SIFS.
+     */
+
+    LogComponentEnable ("MacLow", LOG_LEVEL_INFO);
+
+    WifiTxVector hrfTxVector = GetHrfTxVector (source, rtsTxVector.GetMode ());
+    WifiMacHeader hrf;
+    hrf.SetType (WIFI_MAC_CTL_HRF);
+    hrf.SetDsNotFrom ();
+    hrf.SetDsNotTo ();
+    hrf.SetNoMoreFragments ();
+    hrf.SetNoRetry ();
+    hrf.SetAddr1 (source);
+
+    NS_LOG_INFO(" Packet is hrf gwrg");
+    //TODO
+    duration -= GetCtsDuration (source, rtsTxVector);
+    duration -= GetSifs ();
+    NS_ASSERT (duration.IsPositive ());
+    hrf.SetDuration (duration);
+
+    Ptr<Packet> packet = Create<Packet> ();
+
+    SnrTag tag;
+    tag.Set (rtsSnr);
+    packet->AddPacketTag (tag);
+    NS_LOG_INFO(" Packet is hrf end");
+
+    //CTS should always use non-HT PPDU (HT PPDU cases not supported yet)
+    ForwardDown (Create<const WifiPsdu> (packet, hrf), hrfTxVector);
+    NS_LOG_INFO(" Packet is hrf no forward");
+
+}
+
+  
 void
 MacLow::SendCtsAfterRts (Mac48Address source, Time duration, WifiTxVector rtsTxVector, double rtsSnr)
 {
@@ -2014,6 +2092,8 @@ MacLow::SendCtsAfterRts (Mac48Address source, Time duration, WifiTxVector rtsTxV
   /* send a CTS when you receive a RTS
    * right after SIFS.
    */
+
+  LogComponentEnable ("MacLow", LOG_LEVEL_INFO);
   WifiTxVector ctsTxVector = GetCtsTxVector (source, rtsTxVector.GetMode ());
   WifiMacHeader cts;
   cts.SetType (WIFI_MAC_CTL_CTS);
