@@ -48,7 +48,7 @@ enum
   SUBTYPE_CTL_ACK = 13,
   SUBTYPE_CTL_END = 14,
   SUBTYPE_CTL_END_ACK = 15,
-  SUBTYPE_CTL_HRF = 10,
+  SUBTYPE_CTL_HRF = 0,
 };
 
 WifiMacHeader::WifiMacHeader ()

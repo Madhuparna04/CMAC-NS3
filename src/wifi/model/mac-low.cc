@@ -752,9 +752,13 @@ MacLow::SetHelpHRF(Mac48Address source, Mac48Address destination)
 bool
 MacLow::GetHelpHRF(Mac48Address source, Mac48Address destination)
 {
-    if (this->source == destination && this->destination == source && this->helpHrf)
+    //return this->helpHrf;
+    //&& this->destination == source
+
+    if (this->source == destination  && this->helpHrf)
         return true;
     return false;
+
 }
 
 void
@@ -794,7 +798,9 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
               m_stationManager->ReportRxOk (hdr.GetAddr2 (), &hdr,
                                             rxSnr, txVector.GetMode ());
 
-              m_sendCtsEvent = Simulator::Schedule (GetSifs (),
+                NS_LOG_INFO(" Sending CTF Packet .......................");
+
+                m_sendCtsEvent = Simulator::Schedule (GetSifs (),
                                                     &MacLow::SendCtsAfterRts, this,
                                                     hdr.GetAddr2 (),
                                                     hdr.GetDuration (),
@@ -812,7 +818,8 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
             }
           else if (hdr.GetAddr1 () != m_self)
           {
-                SetHelpHRF(hdr.GetAddr2 (), hdr.GetAddr1 ());
+              NS_LOG_INFO(" Can help with HRF .......................");
+              SetHelpHRF(hdr.GetAddr2(), hdr.GetAddr1());
           }
           else
             {
@@ -822,8 +829,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
     }
   else if(hdr.IsHrf ())
   {
-      NS_LOG_INFO(" Packet is hrf");
-
+      NS_LOG_INFO(" HRF Packet received ");
       return;
   }
   else if (hdr.IsCts ()
@@ -852,9 +858,21 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
                                              &MacLow::SendDataAfterCts, this,
                                              hdr.GetDuration ());
     }
-  else if (hdr.IsCts() && hdr.GetAddr1 () != m_self && GetHelpHRF(hdr.GetAddr2(), hdr.GetAddr1()))
+  else if(hdr.IsCts() && hdr.GetAddr1 () != m_self )
   {
-      NS_LOG_INFO(" SEND HRF ");
+      NS_LOG_INFO(" Overheard CTS  ................." );
+      if (GetHelpHRF(hdr.GetAddr2(), hdr.GetAddr1())){
+          NS_LOG_INFO("Can help with HRF and sending  ................." );
+          Simulator::Schedule (GetSifs (),
+                                                &MacLow::SendHrf, this,
+                                                hdr.GetAddr1 (),
+                                                hdr.GetDuration (),
+                                                txVector,
+                                                rxSnr);
+      }
+      else{
+          NS_LOG_INFO(" Overheard CTS but NO HRF  ................." );
+      }
 
   }
   else if (hdr.IsAck ()
@@ -1718,12 +1736,8 @@ MacLow::ForwardDown (Ptr<const WifiPsdu> psdu, WifiTxVector txVector)
             }
         }
     }
-    NS_LOG_INFO(" Packet is being sent");
     psdu->GetPacket ();
-    NS_LOG_INFO(" Packet is beingrvrfr");
-
     m_phy->SendPacket (psdu->GetPacket (), txVector);
-    NS_LOG_INFO(" Packet is sent");
 }
 
 void
@@ -2090,7 +2104,6 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     hrf.SetNoRetry ();
     hrf.SetAddr1 (source);
 
-    NS_LOG_INFO(" Packet is hrf gwrg");
     //TODO
     duration -= GetCtsDuration (source, rtsTxVector);
     duration -= GetSifs ();
@@ -2102,11 +2115,9 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     SnrTag tag;
     tag.Set (rtsSnr);
     packet->AddPacketTag (tag);
-    NS_LOG_INFO(" Packet is hrf end");
-
     //CTS should always use non-HT PPDU (HT PPDU cases not supported yet)
     ForwardDown (Create<const WifiPsdu> (packet, hrf), hrfTxVector);
-    NS_LOG_INFO(" Packet is hrf no forward");
+    NS_LOG_INFO("HRF Packet sent");
 
 }
 
