@@ -740,6 +740,23 @@ MacLow::NotifyOffNow (void)
   m_currentTxop = 0;
 }
 
+
+void
+MacLow::SetHelpHRF(Mac48Address source, Mac48Address destination)
+{
+    this->source = source;
+    this->destination = destination;
+    this->helpHrf = true;
+}
+
+bool
+MacLow::GetHelpHRF(Mac48Address source, Mac48Address destination)
+{
+    if (this->source == destination && this->destination == source && this->helpHrf)
+        return true;
+    return false;
+}
+
 void
 MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe)
 {
@@ -754,7 +771,6 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
 
   bool isPrevNavZero = IsNavZero ();
   NS_LOG_DEBUG ("duration/id=" << hdr.GetDuration ());
-    NS_LOG_INFO(" Packet is hrf in receive ok" + std::to_string(hdr.m_ctrlSubtype));
   NotifyNav (packet, hdr);
   if (hdr.IsRts ())
     {
@@ -777,22 +793,27 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
               NS_ASSERT (m_sendCtsEvent.IsExpired ());
               m_stationManager->ReportRxOk (hdr.GetAddr2 (), &hdr,
                                             rxSnr, txVector.GetMode ());
-              /*
+
               m_sendCtsEvent = Simulator::Schedule (GetSifs (),
                                                     &MacLow::SendCtsAfterRts, this,
                                                     hdr.GetAddr2 (),
                                                     hdr.GetDuration (),
                                                     txVector,
                                                     rxSnr);
-              */
+              /*
               m_sendCtsEvent = Simulator::Schedule (GetSifs (),
                                                       &MacLow::SendHrf, this,
                                                       hdr.GetAddr2 (),
                                                       hdr.GetDuration (),
                                                       txVector,
                                                       rxSnr);
+                                                      */
 
             }
+          else if (hdr.GetAddr1 () != m_self)
+          {
+                SetHelpHRF(hdr.GetAddr2 (), hdr.GetAddr1 ());
+          }
           else
             {
               NS_LOG_DEBUG ("rx RTS from=" << hdr.GetAddr2 () << ", cannot schedule CTS");
@@ -831,6 +852,11 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
                                              &MacLow::SendDataAfterCts, this,
                                              hdr.GetDuration ());
     }
+  else if (hdr.IsCts() && hdr.GetAddr1 () != m_self && GetHelpHRF(hdr.GetAddr2(), hdr.GetAddr1()))
+  {
+      NS_LOG_INFO(" SEND HRF ");
+
+  }
   else if (hdr.IsAck ()
            && hdr.GetAddr1 () == m_self
            && m_normalAckTimeoutEvent.IsRunning ()

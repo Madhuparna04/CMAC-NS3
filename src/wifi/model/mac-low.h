@@ -74,6 +74,13 @@ public:
    */
   static TypeId GetTypeId (void);
 
+
+
+  /**
+   * HRF related functions
+   */
+   void SetHelpHRF(Mac48Address source, Mac48Address destination);
+   bool GetHelpHRF(Mac48Address source, Mac48Address destination);
   /**
    * Set up WifiPhy associated with this MacLow.
    *
@@ -497,6 +504,13 @@ public:
   void SetMpduAggregator (const Ptr<MpduAggregator> aggr);
 
 private:
+   /**
+   * HRF related fields
+   */
+   Mac48Address source;
+   Mac48Address destination;
+   bool helpHrf = false;
+
   /**
    * Cancel all scheduled events. Called before beginning a transmission
    * or switching channel.
