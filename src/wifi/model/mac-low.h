@@ -578,7 +578,9 @@ private:
    * \return TXVECTOR for the Block ACK
    */
   WifiTxVector GetBlockAckTxVector (Mac48Address to, WifiMode dataTxMode) const;
-  /**
+  //HRF
+  WifiTxVector GetHrfTxVectorForRts (Mac48Address to, WifiMode rtsTxMode) const;
+    /**
    * Return a TXVECTOR for the CTS frame given the destination and the mode of the RTS
    * used by the sender.
    * The function consults WifiRemoteStationManager, which controls the rate
@@ -608,7 +610,12 @@ private:
    * \return control answer mode
    */
   WifiMode GetControlAnswerMode (WifiMode reqMode) const;
-  /**
+  //HRF
+  Time GetHrfDuration (WifiTxVector hrfTxVector) const;
+  Time GetHrfDuration (Mac48Address to, WifiTxVector rtsTxVector) const;
+
+
+    /**
    * Return the time required to transmit the CTS (including preamble and FCS).
    *
    * \param ctsTxVector

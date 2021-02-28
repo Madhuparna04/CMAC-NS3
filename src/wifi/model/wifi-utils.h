@@ -144,6 +144,8 @@ uint32_t GetBlockAckSize (BlockAckType type);
  * \return the total RTS size
  */
 uint32_t GetRtsSize (void);
+//HRF
+uint32_t GetHrfSize (void);
 /**
  * Return the total CTS size (including FCS trailer).
  *

@@ -881,7 +881,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       m_ctsTimeoutEvent.Cancel ();
       NotifyCtsTimeoutResetNow ();
       NS_ASSERT (m_sendDataEvent.IsExpired ());
-        Simulator::Schedule (2*GetSifs (),
+        Simulator::Schedule (2*GetSifs () + GetHrfDuration(txVector),
                              &MacLow::IsDataSent, this,
                              hdr.GetDuration()
                              );
@@ -1282,6 +1282,19 @@ MacLow::GetCtsDuration (WifiTxVector ctsTxVector) const
   return m_phy->CalculateTxDuration (GetCtsSize (), ctsTxVector, m_phy->GetFrequency ());
 }
 
+Time
+MacLow::GetHrfDuration (Mac48Address to, WifiTxVector rtsTxVector) const
+{
+    WifiTxVector hrfTxVector = GetHrfTxVectorForRts (to, rtsTxVector.GetMode ());
+    return GetHrfDuration (hrfTxVector);
+}
+
+Time
+MacLow::GetHrfDuration(WifiTxVector hrfTxVector) const
+{
+    return m_phy->CalculateTxDuration (GetHrfSize (), hrfTxVector, m_phy->GetFrequency ());
+}
+
 WifiTxVector
 MacLow::GetRtsTxVector (Ptr<const WifiMacQueueItem> item) const
 {
@@ -1506,6 +1519,12 @@ WifiTxVector
 MacLow::GetCtsTxVectorForRts (Mac48Address to, WifiMode rtsTxMode) const
 {
   return GetCtsTxVector (to, rtsTxMode);
+}
+
+WifiTxVector
+MacLow::GetHrfTxVectorForRts (Mac48Address to, WifiMode rtsTxMode) const
+{
+    return GetHrfTxVector (to, rtsTxMode);
 }
 
 WifiTxVector
@@ -1851,6 +1870,8 @@ MacLow::SendRtsForPacket (void)
   duration += GetSifs ();
   duration += GetCtsDuration (m_currentPacket->GetAddr1 (), rtsTxVector);
   duration += GetSifs ();
+  duration += GetHrfDuration (m_currentPacket->GetAddr1 (), rtsTxVector);
+  duration += GetSifs ();
   duration += m_phy->CalculateTxDuration (m_currentPacket->GetSize (),
                                           m_currentTxVector, m_phy->GetFrequency ());
   duration += GetSifs ();
@@ -2139,7 +2160,8 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
 
     //TODO
     duration -= GetCtsDuration (source, rtsTxVector);
-    duration -= GetSifs ();
+    duration -= GetHrfDuration (source, rtsTxVector);
+    duration -= 2*GetSifs ();
     NS_ASSERT (duration.IsPositive ());
     hrf.SetDuration (duration);
 

@@ -211,6 +211,14 @@ GetCtsSize (void)
   return cts.GetSize () + 4;
 }
 
+uint32_t
+GetHrfSize (void)
+{
+    WifiMacHeader hrf;
+    hrf.SetType (WIFI_MAC_CTL_HRF);
+    return hrf.GetSize () + 4;
+}
+
 bool
 IsInWindow (uint16_t seq, uint16_t winstart, uint16_t winsize)
 {
