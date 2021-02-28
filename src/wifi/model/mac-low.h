@@ -81,6 +81,10 @@ public:
    */
    void SetHelpHRF(Mac48Address source, Mac48Address destination);
    bool GetHelpHRF(Mac48Address source, Mac48Address destination);
+
+    void SetHelpReceived(void);
+    bool GetHelpReceived(void);
+    void IsDataSent(Time duration);
   /**
    * Set up WifiPhy associated with this MacLow.
    *
@@ -510,6 +514,7 @@ private:
    Mac48Address source;
    Mac48Address destination;
    bool helpHrf = false;
+   bool helpReceived = false;
 
   /**
    * Cancel all scheduled events. Called before beginning a transmission

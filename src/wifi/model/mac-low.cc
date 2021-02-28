@@ -762,6 +762,27 @@ MacLow::GetHelpHRF(Mac48Address source, Mac48Address destination)
 }
 
 void
+MacLow::SetHelpReceived() {
+    this->helpReceived = true;
+}
+
+bool
+MacLow::GetHelpReceived() {
+    return this->helpReceived;
+}
+
+void
+MacLow::IsDataSent(Time duration)
+{
+
+    if(!GetHelpReceived()) {
+        NS_LOG_INFO(" Cannot help with HRF so sending data .......................");
+        //SendDataAfterCts(duration);
+    }
+
+}
+
+void
 MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe)
 {
   NS_LOG_FUNCTION (this << packet << rxSnr << txVector.GetMode () << txVector.GetPreambleType ());
@@ -806,14 +827,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
                                                     hdr.GetDuration (),
                                                     txVector,
                                                     rxSnr);
-              /*
-              m_sendCtsEvent = Simulator::Schedule (GetSifs (),
-                                                      &MacLow::SendHrf, this,
-                                                      hdr.GetAddr2 (),
-                                                      hdr.GetDuration (),
-                                                      txVector,
-                                                      rxSnr);
-                                                      */
+
 
             }
           else if (hdr.GetAddr1 () != m_self)
@@ -840,6 +854,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       m_ctsTimeoutEvent.Cancel ();
       NotifyCtsTimeoutResetNow ();
       NS_ASSERT (m_sendDataEvent.IsExpired ());
+      SetHelpReceived();
       m_sendDataEvent = Simulator::Schedule (GetSifs (),
                                              &MacLow::SendDataAfterCts, this,
                                              hdr.GetDuration ());
@@ -850,6 +865,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
            && m_ctsTimeoutEvent.IsRunning ()
            && m_currentPacket != 0)
     {
+
       if (ampduSubframe)
         {
           NS_FATAL_ERROR ("Received CTS as part of an A-MPDU");
@@ -867,9 +883,13 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       m_ctsTimeoutEvent.Cancel ();
       NotifyCtsTimeoutResetNow ();
       NS_ASSERT (m_sendDataEvent.IsExpired ());
-      m_sendDataEvent = Simulator::Schedule (GetSifs (),
+        Simulator::Schedule (2*GetSifs (),
+                             &MacLow::IsDataSent, this,
+                             hdr.GetDuration()
+                             );
+      /*m_sendDataEvent = Simulator::Schedule (GetSifs (),
                                              &MacLow::SendDataAfterCts, this,
-                                             hdr.GetDuration ());
+                                             hdr.GetDuration ());*/
     }
   else if(hdr.IsCts() && hdr.GetAddr1 () != m_self )
   {
