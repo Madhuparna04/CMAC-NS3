@@ -752,8 +752,6 @@ MacLow::SetHelpHRF(Mac48Address source, Mac48Address destination)
 bool
 MacLow::GetHelpHRF(Mac48Address source, Mac48Address destination)
 {
-    //return this->helpHrf;
-    //&& this->destination == source
 
     if (this->source == destination  && this->helpHrf)
         return true;
@@ -777,7 +775,7 @@ MacLow::IsDataSent(Time duration)
 
     if(!GetHelpReceived()) {
         NS_LOG_INFO(" Cannot help with HRF so sending data .......................");
-        //SendDataAfterCts(duration);
+        SendDataAfterCts(duration);
     }
 
 }
@@ -887,9 +885,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
                              &MacLow::IsDataSent, this,
                              hdr.GetDuration()
                              );
-      /*m_sendDataEvent = Simulator::Schedule (GetSifs (),
-                                             &MacLow::SendDataAfterCts, this,
-                                             hdr.GetDuration ());*/
+
     }
   else if(hdr.IsCts() && hdr.GetAddr1 () != m_self )
   {
@@ -2137,6 +2133,9 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     hrf.SetNoRetry ();
     hrf.SetAddr1 (source);
     hrf.SetAddr2 (m_self);
+    if(source == m_self){
+        NS_LOG_INFO("Problem");
+    }
 
     //TODO
     duration -= GetCtsDuration (source, rtsTxVector);
@@ -2149,7 +2148,6 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     SnrTag tag;
     tag.Set (rtsSnr);
     packet->AddPacketTag (tag);
-    //CTS should always use non-HT PPDU (HT PPDU cases not supported yet)
     ForwardDown (Create<const WifiPsdu> (packet, hrf), hrfTxVector);
     NS_LOG_INFO("HRF Packet sent");
 
