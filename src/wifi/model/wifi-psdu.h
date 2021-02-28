@@ -119,6 +119,7 @@ public:
    */
   Time GetTimeStamp (std::size_t i) const;
 
+  void SetAddr1 (Mac48Address addr);
   /**
    * Get the Receiver Address (RA), which is common to all the MPDUs
    * \return the Receiver Address.

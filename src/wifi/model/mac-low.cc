@@ -856,8 +856,8 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       NS_ASSERT (m_sendDataEvent.IsExpired ());
       SetHelpReceived();
       m_sendDataEvent = Simulator::Schedule (GetSifs (),
-                                             &MacLow::SendDataAfterCts, this,
-                                             hdr.GetDuration ());
+                                             &MacLow::SendDataAfterHrf, this,
+                                             hdr.GetDuration (), hdr.GetAddr2 ());
       return;
   }
   else if (hdr.IsCts ()
@@ -2186,6 +2186,63 @@ MacLow::SendCtsAfterRts (Mac48Address source, Time duration, WifiTxVector rtsTxV
 
   //CTS should always use non-HT PPDU (HT PPDU cases not supported yet)
   ForwardDown (Create<const WifiPsdu> (packet, cts), ctsTxVector);
+}
+
+void
+MacLow::SendDataAfterHrf (Time duration, Mac48Address helperNode)
+{
+    NS_LOG_FUNCTION (this);
+    /* send the third step in a
+     * RTS/CTS/DATA/ACK handshake
+     */
+    NS_ASSERT (m_currentPacket != 0);
+
+    StartDataTxTimers (m_currentTxVector);
+    Time newDuration = Seconds (0);
+    if (m_txParams.MustWaitBlockAck ())
+    {
+        newDuration += GetSifs ();
+        WifiTxVector blockAckReqTxVector = GetBlockAckTxVector (m_currentPacket->GetAddr2 (), m_currentTxVector.GetMode ());
+        newDuration += GetBlockAckDuration (blockAckReqTxVector, m_txParams.GetBlockAckType ());
+    }
+    else if (m_txParams.MustWaitNormalAck ())
+    {
+        newDuration += GetSifs ();
+        newDuration += GetAckDuration (m_currentPacket->GetAddr1 (), m_currentTxVector);
+    }
+    if (m_txParams.HasNextPacket ())
+    {
+        if (m_stationManager->GetRifsPermitted ())
+        {
+            newDuration += GetRifs ();
+        }
+        else
+        {
+            newDuration += GetSifs ();
+        }
+        newDuration += m_phy->CalculateTxDuration (m_txParams.GetNextPacketSize (), m_currentTxVector, m_phy->GetFrequency ());
+        if (m_txParams.MustWaitBlockAck ())
+        {
+            newDuration += GetSifs ();
+            WifiTxVector blockAckReqTxVector = GetBlockAckTxVector (m_currentPacket->GetAddr2 (), m_currentTxVector.GetMode ());
+            newDuration += GetBlockAckDuration (blockAckReqTxVector, m_txParams.GetBlockAckType ());
+        }
+        else if (m_txParams.MustWaitNormalAck ())
+        {
+            newDuration += GetSifs ();
+            newDuration += GetAckDuration (m_currentPacket->GetAddr1 (), m_currentTxVector);
+        }
+    }
+
+    Time txDuration = m_phy->CalculateTxDuration (m_currentPacket->GetSize (), m_currentTxVector, m_phy->GetFrequency ());
+    duration -= txDuration;
+    duration -= GetSifs ();
+
+    duration = std::max (duration, newDuration);
+    NS_ASSERT (duration.IsPositive ());
+    m_currentPacket->SetDuration (duration);
+    //m_currentPacket->SetAddr1 (helperNode);
+    ForwardDown (m_currentPacket, m_currentTxVector);
 }
 
 void

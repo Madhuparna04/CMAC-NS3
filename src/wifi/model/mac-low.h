@@ -748,6 +748,11 @@ private:
    */
   void SendAckAfterData (Mac48Address source, Time duration, WifiMode dataTxMode, double dataSnr);
   /**
+   * Send data through helper node
+   */
+  void SendDataAfterHrf (Time duration, Mac48Address helperNode);
+
+    /**
    * Send DATA after receiving CTS.
    *
    * \param duration

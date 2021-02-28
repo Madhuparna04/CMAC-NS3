@@ -111,6 +111,16 @@ WifiPsdu::GetPacket (void) const
   return packet;
 }
 
+void
+WifiPsdu::SetAddr1 (Mac48Address addr)
+{
+    m_mpduList.at (0)->GetHeader ().SetAddr1 (addr);
+    for (std::size_t i = 1; i < m_mpduList.size (); i++)
+    {
+        m_mpduList.at (i)->GetHeader ().SetAddr1 (addr);
+    }
+}
+
 Mac48Address
 WifiPsdu::GetAddr1 (void) const
 {
