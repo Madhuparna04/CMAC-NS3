@@ -915,10 +915,10 @@ WifiMacHeader::GetSize (void) const
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
+        case SUBTYPE_CTL_HRF:
           size = 2 + 2 + 6 + 6;
           break;
         case SUBTYPE_CTL_CTS:
-        case SUBTYPE_CTL_HRF:
         case SUBTYPE_CTL_ACK:
           size = 2 + 2 + 6;
           break;
@@ -1033,6 +1033,7 @@ WifiMacHeader::Print (std::ostream &os) const
   switch (GetType ())
     {
     case WIFI_MAC_CTL_RTS:
+    case WIFI_MAC_CTL_HRF:
       os << "Duration/ID=" << m_duration << "us"
          << ", RA=" << m_addr1 << ", TA=" << m_addr2;
       break;
@@ -1146,14 +1147,14 @@ WifiMacHeader::Serialize (Buffer::Iterator i) const
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
-          WriteTo (i, m_addr2);
+        case SUBTYPE_CTL_HRF:
+            WriteTo (i, m_addr2);
           break;
         case SUBTYPE_CTL_CTS:
-        case SUBTYPE_CTL_HRF:
         case SUBTYPE_CTL_ACK:
           break;
         default:
-          //NOTREACHED
+          //NOT REACHED
           NS_ASSERT (false);
           break;
         }
@@ -1202,6 +1203,7 @@ WifiMacHeader::Deserialize (Buffer::Iterator start)
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
+        case SUBTYPE_CTL_HRF:
           ReadFrom (i, m_addr2);
           break;
         case SUBTYPE_CTL_CTS:

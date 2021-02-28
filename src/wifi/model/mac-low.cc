@@ -827,9 +827,22 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
             }
         }
     }
-  else if(hdr.IsHrf ())
+  else if(hdr.IsHrf () && hdr.GetAddr1 () == m_self)
   {
       NS_LOG_INFO(" HRF Packet received ");
+      SnrTag tag;
+      packet->RemovePacketTag (tag);
+      m_stationManager->ReportRxOk (m_currentPacket->GetAddr1 (), &m_currentPacket->GetHeader (0),
+                                    rxSnr, txVector.GetMode ());
+      m_stationManager->ReportRtsOk (m_currentPacket->GetAddr1 (), &m_currentPacket->GetHeader (0),
+                                     rxSnr, txVector.GetMode (), tag.Get ());
+
+      m_ctsTimeoutEvent.Cancel ();
+      NotifyCtsTimeoutResetNow ();
+      NS_ASSERT (m_sendDataEvent.IsExpired ());
+      m_sendDataEvent = Simulator::Schedule (GetSifs (),
+                                             &MacLow::SendDataAfterCts, this,
+                                             hdr.GetDuration ());
       return;
   }
   else if (hdr.IsCts ()
@@ -2103,6 +2116,7 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     hrf.SetNoMoreFragments ();
     hrf.SetNoRetry ();
     hrf.SetAddr1 (source);
+    hrf.SetAddr2 (m_self);
 
     //TODO
     duration -= GetCtsDuration (source, rtsTxVector);
