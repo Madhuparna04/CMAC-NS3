@@ -2206,6 +2206,7 @@ MacLow::SendCtsAfterRts (Mac48Address source, Time duration, WifiTxVector rtsTxV
 
   //CTS should always use non-HT PPDU (HT PPDU cases not supported yet)
   ForwardDown (Create<const WifiPsdu> (packet, cts), ctsTxVector);
+    NS_LOG_INFO("cts Packet sent......................." + std::to_string(ctsTxVector.GetTxPowerLevel()) + std::to_string(rtsTxVector.GetTxPowerLevel()));
 }
 
 void
