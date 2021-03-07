@@ -30,6 +30,9 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/v4ping-helper.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/wifi-radio-energy-model-helper.h"
+#include "ns3/basic-energy-source-helper.h"
+
 
 using namespace ns3;
 
@@ -115,7 +118,7 @@ int main (int argc, char **argv)
 //-----------------------------------------------------------------------------
 AodvExample::AodvExample () :
   size (3),
-  step (1),
+  step (20),
   totalTime (10),
   pcap (true),
   printRoutes (true)
@@ -185,6 +188,8 @@ AodvExample::CreateNodes ()
                                  "LayoutType", StringValue ("RowFirst"));
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (nodes);
+
+
 }
 
 void
@@ -197,8 +202,17 @@ AodvExample::CreateDevices ()
   wifiPhy.SetChannel (wifiChannel.Create ());
   WifiHelper wifi;
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("OfdmRate6Mbps"), "RtsCtsThreshold", UintegerValue (0));
-  devices = wifi.Install (wifiPhy, wifiMac, nodes); 
+  devices = wifi.Install (wifiPhy, wifiMac, nodes);
 
+    BasicEnergySourceHelper basicSourceHelper;
+    // set energy to 0 so that we deplete energy at the beginning of simulation
+    basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100));
+    // set update interval
+    //basicSourceHelper.Set ("PeriodicEnergyUpdateInterval", TimeValue (Seconds (updateIntervalS)));
+    // install source
+    EnergySourceContainer sources = basicSourceHelper.Install (nodes);
+    WifiRadioEnergyModelHelper energy;
+    energy.Install(devices, sources);
   if (pcap)
     {
       wifiPhy.EnablePcapAll (std::string ("aodv"));

@@ -590,7 +590,9 @@ private:
    * \param rtsTxMode the mode of the RTS used by the sender
    * \return TXVECTOR for the CTS
    */
-  WifiTxVector GetCtsTxVectorForRts (Mac48Address to, WifiMode rtsTxMode) const;
+    void RelayData(Ptr<Packet> packet, Time duration, WifiMacHeader hdr, WifiTxVector txVector);
+
+    WifiTxVector GetCtsTxVectorForRts (Mac48Address to, WifiMode rtsTxMode) const;
   /**
    * Return a TXVECTOR for the Block ACK frame given the destination and the mode of the DATA
    * used by the sender.

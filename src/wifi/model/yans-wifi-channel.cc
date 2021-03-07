@@ -84,7 +84,11 @@ YansWifiChannel::SetPropagationDelayModel (const Ptr<PropagationDelayModel> dela
 void
 YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double txPowerDbm, Time duration) const
 {
-  NS_LOG_FUNCTION (this << sender << packet << txPowerDbm << duration.GetSeconds ());
+    LogComponentEnable ("YansWifiChannel", LOG_LEVEL_INFO);
+
+    NS_LOG_INFO("Received signal too weak to send:    ((((((((((((" << txPowerDbm << " dBm");
+
+    NS_LOG_FUNCTION (this << sender << packet << txPowerDbm << duration.GetSeconds ());
   Ptr<MobilityModel> senderMobility = sender->GetMobility ();
   NS_ASSERT (senderMobility != 0);
   for (PhyList::const_iterator i = m_phyList.begin (); i != m_phyList.end (); i++)
@@ -100,7 +104,7 @@ YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double
           Ptr<MobilityModel> receiverMobility = (*i)->GetMobility ()->GetObject<MobilityModel> ();
           Time delay = m_delay->GetDelay (senderMobility, receiverMobility);
           double rxPowerDbm = m_loss->CalcRxPower (txPowerDbm, senderMobility, receiverMobility);
-          NS_LOG_DEBUG ("propagation: txPower=" << txPowerDbm << "dbm, rxPower=" << rxPowerDbm << "dbm, " <<
+          NS_LOG_INFO ("propagation: txPower=" << txPowerDbm << "dbm, rxPower=" << rxPowerDbm << "dbm, " <<
                         "distance=" << senderMobility->GetDistanceFrom (receiverMobility) << "m, delay=" << delay);
           Ptr<Packet> copy = packet->Copy ();
           Ptr<NetDevice> dstNetDevice = (*i)->GetDevice ();
@@ -124,7 +128,9 @@ YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double
 void
 YansWifiChannel::Receive (Ptr<YansWifiPhy> phy, Ptr<Packet> packet, double rxPowerDbm, Time duration)
 {
-  NS_LOG_FUNCTION (phy << packet << rxPowerDbm << duration.GetSeconds ());
+    NS_LOG_INFO ("Received signal too weak to process:    ((((((((((((" << rxPowerDbm << " dBm");
+
+    NS_LOG_FUNCTION (phy << packet << rxPowerDbm << duration.GetSeconds ());
   // Do no further processing if signal is too weak
   // Current implementation assumes constant rx power over the packet duration
   if ((rxPowerDbm + phy->GetRxGain ()) < phy->GetRxSensitivity ())

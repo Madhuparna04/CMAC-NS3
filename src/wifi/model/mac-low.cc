@@ -781,6 +781,21 @@ MacLow::IsDataSent(Time duration)
 }
 
 void
+MacLow::RelayData(Ptr<Packet> packet, Time duration, WifiMacHeader hdr, WifiTxVector txVector)
+{
+    Time txDuration = (m_phy->CalculateTxDuration (packet->GetSize (), txVector, m_phy->GetFrequency ()));
+    duration -= txDuration;
+    duration -= GetSifs ();
+    //hdr.SetDuration(duration);
+    NS_LOG_INFO("Packet size here" + std::to_string(packet->GetSize()));
+    Ptr<const ns3::WifiPsdu> pkt = Create<const WifiPsdu> (packet, hdr);
+    NS_LOG_INFO("Packet size here" + std::to_string(pkt->GetSize()));
+
+    //ForwardDown (Create<const WifiPsdu> (packet, hdr), txVector);
+    //ForwardDown (pkt, txVector);
+}
+
+void
 MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool ampduSubframe)
 {
   NS_LOG_FUNCTION (this << packet << rxSnr << txVector.GetMode () << txVector.GetPreambleType ());
@@ -790,7 +805,9 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
    * packet queue.
    */
   WifiMacHeader hdr;
+  NS_LOG_INFO("Packet size" + std::to_string(packet->GetSize()));
   packet->RemoveHeader (hdr);
+  NS_LOG_INFO("Packet size" + std::to_string(packet->GetSize()));
 
   bool isPrevNavZero = IsNavZero ();
   NS_LOG_DEBUG ("duration/id=" << hdr.GetDuration ());
@@ -1036,6 +1053,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
           NS_FATAL_ERROR ("Multi-tid block ack is not supported.");
         }
     }
+
   else if (hdr.IsCtl ())
     {
       if (hdr.IsCfEnd ())
@@ -1197,6 +1215,15 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
             }
         }
     }
+  else if (hdr.IsData() && hdr.GetAddr1 () != m_self)
+  {
+      Simulator::Schedule (GetSifs (),
+                        &MacLow::RelayData, this,
+                        packet,
+                        hdr.GetDuration (),
+                        hdr,
+                        txVector);
+  }
   else if (m_promisc)
     {
       NS_ASSERT (hdr.GetAddr1 () != m_self);
@@ -1872,9 +1899,9 @@ MacLow::SendRtsForPacket (void)
   duration += GetSifs ();
   duration += GetHrfDuration (m_currentPacket->GetAddr1 (), rtsTxVector);
   duration += GetSifs ();
-  duration += m_phy->CalculateTxDuration (m_currentPacket->GetSize (),
-                                          m_currentTxVector, m_phy->GetFrequency ());
-  duration += GetSifs ();
+  duration += 2 * (m_phy->CalculateTxDuration (m_currentPacket->GetSize (),
+                                          m_currentTxVector, m_phy->GetFrequency ()));
+  duration += 2 * (GetSifs ());
   if (m_txParams.MustWaitBlockAck ())
     {
       WifiTxVector blockAckReqTxVector = GetBlockAckTxVector (m_currentPacket->GetAddr2 (), m_currentTxVector.GetMode ());
@@ -1902,7 +1929,7 @@ MacLow::SendRtsForPacket (void)
   NS_ASSERT (m_ctsTimeoutEvent.IsExpired ());
   NotifyCtsTimeoutStartNow (timerDelay);
   m_ctsTimeoutEvent = Simulator::Schedule (timerDelay, &MacLow::CtsTimeout, this);
-
+    NS_LOG_INFO("Power for rts transmission ++++++++++++++++++++++++++++++++" + std::to_string(rtsTxVector.GetTxPowerLevel()));
   ForwardDown (Create<const WifiPsdu> (Create<Packet> (), rts), rtsTxVector);
 }
 
@@ -2159,9 +2186,8 @@ MacLow::SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, d
     }
 
     //TODO
-    duration -= GetCtsDuration (source, rtsTxVector);
     duration -= GetHrfDuration (source, rtsTxVector);
-    duration -= 2*GetSifs ();
+    duration -= GetSifs ();
     NS_ASSERT (duration.IsPositive ());
     hrf.SetDuration (duration);
 
@@ -2255,7 +2281,7 @@ MacLow::SendDataAfterHrf (Time duration, Mac48Address helperNode)
         }
     }
 
-    Time txDuration = m_phy->CalculateTxDuration (m_currentPacket->GetSize (), m_currentTxVector, m_phy->GetFrequency ());
+    Time txDuration = (m_phy->CalculateTxDuration (m_currentPacket->GetSize (), m_currentTxVector, m_phy->GetFrequency ()));
     duration -= txDuration;
     duration -= GetSifs ();
 
@@ -2263,6 +2289,7 @@ MacLow::SendDataAfterHrf (Time duration, Mac48Address helperNode)
     NS_ASSERT (duration.IsPositive ());
     m_currentPacket->SetDuration (duration);
     //m_currentPacket->SetAddr1 (helperNode);
+    NS_LOG_INFO("Power for data transmission ++++++++++++++++++++++++++++++++" + std::to_string(m_currentTxVector.GetTxPowerLevel()));
     ForwardDown (m_currentPacket, m_currentTxVector);
 }
 
