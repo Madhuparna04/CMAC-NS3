@@ -283,7 +283,7 @@ void
 WifiMacHeader::SetDuration (Time duration)
 {
   int64_t duration_us = static_cast<int64_t> (ceil (static_cast<double> (duration.GetNanoSeconds ()) / 1000));
-  NS_ASSERT (duration_us >= 0 && duration_us <= 0x7fff);
+  //NS_ASSERT (duration_us >= 0 && duration_us <= 0x7fff);
   m_duration = static_cast<uint16_t> (duration_us);
 }
 
@@ -910,13 +910,15 @@ WifiMacHeader::GetSize (void) const
     case TYPE_CTL:
       switch (m_ctrlSubtype)
         {
+          case SUBTYPE_CTL_HRF:
+              size = 2 + 2 + 6 + 6 + 6;
+              break;
         case SUBTYPE_CTL_RTS:
         case SUBTYPE_CTL_BACKREQ:
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
-        case SUBTYPE_CTL_HRF:
-          size = 2 + 2 + 6 + 6;
+            size = 2 + 2 + 6 + 6;
           break;
         case SUBTYPE_CTL_CTS:
         case SUBTYPE_CTL_ACK:
@@ -1035,7 +1037,7 @@ WifiMacHeader::Print (std::ostream &os) const
     case WIFI_MAC_CTL_RTS:
     case WIFI_MAC_CTL_HRF:
       os << "Duration/ID=" << m_duration << "us"
-         << ", RA=" << m_addr1 << ", TA=" << m_addr2;
+         << ", RA=" << m_addr1 << ", TA=" << m_addr2 << ", DA=" << m_addr3;
       break;
     case WIFI_MAC_CTL_CTS:
     case WIFI_MAC_CTL_ACK:
@@ -1142,12 +1144,15 @@ WifiMacHeader::Serialize (Buffer::Iterator i) const
     case TYPE_CTL:
       switch (m_ctrlSubtype)
         {
+          case SUBTYPE_CTL_HRF:
+                WriteTo (i, m_addr2);
+                WriteTo (i, m_addr3);
+                break;
         case SUBTYPE_CTL_RTS:
         case SUBTYPE_CTL_BACKREQ:
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
-        case SUBTYPE_CTL_HRF:
             WriteTo (i, m_addr2);
           break;
         case SUBTYPE_CTL_CTS:
@@ -1198,12 +1203,15 @@ WifiMacHeader::Deserialize (Buffer::Iterator start)
     case TYPE_CTL:
       switch (m_ctrlSubtype)
         {
-        case SUBTYPE_CTL_RTS:
+            case SUBTYPE_CTL_HRF:
+                ReadFrom (i, m_addr2);
+                ReadFrom (i, m_addr3);
+            break;
+            case SUBTYPE_CTL_RTS:
         case SUBTYPE_CTL_BACKREQ:
         case SUBTYPE_CTL_BACKRESP:
         case SUBTYPE_CTL_END:
         case SUBTYPE_CTL_END_ACK:
-        case SUBTYPE_CTL_HRF:
           ReadFrom (i, m_addr2);
           break;
         case SUBTYPE_CTL_CTS:

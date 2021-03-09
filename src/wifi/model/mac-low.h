@@ -82,8 +82,12 @@ public:
    void SetHelpHRF(Mac48Address source, Mac48Address destination);
    bool GetHelpHRF(Mac48Address source, Mac48Address destination);
 
+    void SetReceiveDataHRF(Mac48Address source, Mac48Address relay);
+    bool GetReceiveDataHRF(Mac48Address relay);
+
     void SetHelpReceived(void);
     bool GetHelpReceived(void);
+
     void IsDataSent(Time duration);
   /**
    * Set up WifiPhy associated with this MacLow.
@@ -513,8 +517,10 @@ private:
    */
    Mac48Address source;
    Mac48Address destination;
+   Mac48Address relay;
    bool helpHrf = false;
    bool helpReceived = false;
+   bool receiveDataHRF = false;
 
   /**
    * Cancel all scheduled events. Called before beginning a transmission
@@ -737,7 +743,7 @@ private:
   /**
    * Send HRF Packet.
    * */
-  void SendHrf (Mac48Address source, Time duration, WifiTxVector rtsTxVector, double rtsSnr);
+  void SendHrf (Mac48Address source, Mac48Address destination, Time duration, WifiTxVector rtsTxVector, double rtsSnr);
   /**
    * Send CTS after receiving RTS.
    *
