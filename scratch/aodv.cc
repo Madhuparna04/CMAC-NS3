@@ -93,6 +93,8 @@ private:
   /// interfaces used in the example
   Ipv4InterfaceContainer interfaces;
 
+    EnergySourceContainer sources;
+
 private:
   /// Create the nodes
   void CreateNodes ();
@@ -156,7 +158,33 @@ AodvExample::Run ()
   std::cout << "Starting simulation for " << totalTime << " s ...\n";
 
   Simulator::Stop (Seconds (totalTime));
+
+
+    std::cout << "Energy at node 0: ";
+    std::cout << sources.Get(0)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
+
+    std::cout << "Energy at node 1: ";
+    std::cout << sources.Get(1)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
+
+    std::cout << "Energy at node 2: ";
+    std::cout << sources.Get(2)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
   Simulator::Run ();
+
+    std::cout << "Energy at node 0: ";
+    std::cout << sources.Get(0)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
+
+    std::cout << "Energy at node 1: ";
+    std::cout << sources.Get(1)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
+
+    std::cout << "Energy at node 2: ";
+    std::cout << sources.Get(2)->GetRemainingEnergy() << " ";
+    std::cout << std::endl;
+
   Simulator::Destroy ();
 }
 
@@ -204,15 +232,20 @@ AodvExample::CreateDevices ()
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("OfdmRate6Mbps"), "RtsCtsThreshold", UintegerValue (0));
   devices = wifi.Install (wifiPhy, wifiMac, nodes);
 
-    BasicEnergySourceHelper basicSourceHelper;
-    // set energy to 0 so that we deplete energy at the beginning of simulation
-    basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100));
-    // set update interval
-    //basicSourceHelper.Set ("PeriodicEnergyUpdateInterval", TimeValue (Seconds (updateIntervalS)));
+
+    BasicEnergySourceHelper basicSourceHelper; ////Creates a BasicEnergySource (inherits from EnergySource class) object. BasicEnergySource decreases/increases remaining energy stored in itself in linearly. Energy source base class:This is the base class for energy sources. Energy sources keep track of remaining energy. Device energy models will be updating the remaining energy in the energy source. The energy source itself does not update the remaining energy. Energy source also keeps a list of device energy models installed on the same node. When the remaining energy level reaches 0, the energy source will notify all device energy models stored in the list.
+    // configure energy source
+    basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (0.1)); //Initial energy stored in basic energy source. set with class: ns3::DoubleValue. Initial value: 10
     // install source
-    EnergySourceContainer sources = basicSourceHelper.Install (nodes);
-    WifiRadioEnergyModelHelper energy;
-    energy.Install(devices, sources);
+    this->sources = basicSourceHelper.Install (this->nodes); //EnergySourceHelper returns a list of EnergySource pointers installed onto a node. Users can use this list to access EnergySource objects to obtain total energy consumption on a node easily
+    /* device energy model */
+    WifiRadioEnergyModelHelper radioEnergyHelper;
+    // configure radio energy model
+    radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.0174));
+    // install device model
+    DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install (devices, sources);
+
+
   if (pcap)
     {
       wifiPhy.EnablePcapAll (std::string ("aodv"));
