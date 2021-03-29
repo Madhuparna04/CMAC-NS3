@@ -112,6 +112,11 @@ int main (int argc, char **argv)
   if (!test.Configure (argc, argv))
     NS_FATAL_ERROR ("Configuration failed. Aborted.");
 
+    LogComponentEnable ("YansWifiPhy", LOG_LEVEL_ALL);
+    LogComponentEnable ("WifiPhy", LOG_LEVEL_ALL);
+
+    
+
   test.Run ();
   test.Report (std::cout);
   return 0;
@@ -120,8 +125,8 @@ int main (int argc, char **argv)
 //-----------------------------------------------------------------------------
 AodvExample::AodvExample () :
   size (3),
-  step (1),
-  totalTime (10),
+  step (25),
+  totalTime (100),
   pcap (true),
   printRoutes (true)
 {
@@ -211,13 +216,13 @@ AodvExample::CreateNodes ()
                                  "MinX", DoubleValue (0.0),
                                  "MinY", DoubleValue (0.0),
                                  "DeltaX", DoubleValue (step),
-                                 "DeltaY", DoubleValue (0),
+                                 "DeltaY", DoubleValue (10),
                                  "GridWidth", UintegerValue (size),
                                  "LayoutType", StringValue ("RowFirst"));
-  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  //mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Rectangle (-50, 50, -50, 50)));
   mobility.Install (nodes);
-
-
 }
 
 void
@@ -282,8 +287,8 @@ AodvExample::InstallApplications ()
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
   // move node away
-  Ptr<Node> node = nodes.Get (size/2);
-  Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
-  Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
+  //Ptr<Node> node = nodes.Get (size/2);
+  //Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
+  //Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
 }
 

@@ -128,7 +128,6 @@ YansWifiChannel::Send (Ptr<YansWifiPhy> sender, Ptr<const Packet> packet, double
 void
 YansWifiChannel::Receive (Ptr<YansWifiPhy> phy, Ptr<Packet> packet, double rxPowerDbm, Time duration)
 {
-    NS_LOG_INFO ("Received signal too weak to process:    ((((((((((((" << rxPowerDbm << " dBm");
 
     NS_LOG_FUNCTION (phy << packet << rxPowerDbm << duration.GetSeconds ());
   // Do no further processing if signal is too weak

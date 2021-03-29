@@ -796,6 +796,7 @@ WifiPhy::GetPowerDbm (uint8_t power) const
   NS_ASSERT (m_txPowerBaseDbm <= m_txPowerEndDbm);
   NS_ASSERT (m_nTxPower > 0);
   double dbm;
+    NS_LOG_INFO("Base DBM" << m_txPowerBaseDbm);
   if (m_nTxPower > 1)
     {
       dbm = m_txPowerBaseDbm + power * (m_txPowerEndDbm - m_txPowerBaseDbm) / (m_nTxPower - 1);
@@ -2522,6 +2523,7 @@ WifiPhy::SendPacket (Ptr<const Packet> packet, WifiTxVector txVector)
    *    prevent it.
    *  - we are idle
    */
+  NS_LOG_INFO("hdiewnfiewf");
   NS_ASSERT (!m_state->IsStateTx () && !m_state->IsStateSwitching ());
 
   if (txVector.GetNss () > GetMaxSupportedTxSpatialStreams ())
@@ -2566,6 +2568,7 @@ WifiPhy::SendPacket (Ptr<const Packet> packet, WifiTxVector txVector)
     }
 
   NotifyTxBegin (packet, DbmToW (GetTxPowerForTransmission (txVector) + GetTxGain ()));
+  NS_LOG_INFO("pOWER TRCWEF0" << GetPowerDbm(txVector.GetTxPowerLevel()) << GetTxGain ());
   NotifyMonitorSniffTx (packet, GetFrequency (), txVector);
   m_state->SwitchToTx (txDuration, packet, GetPowerDbm (txVector.GetTxPowerLevel ()), txVector);
 
@@ -2657,6 +2660,8 @@ WifiPhy::SendPacket (Ptr<const Packet> packet, WifiTxVector txVector)
     }
   WifiPhyTag tag (txVector.GetPreambleType (), txVector.GetMode ().GetModulationClass (), isFrameComplete);
   newPacket->AddPacketTag (tag);
+
+  NS_LOG_INFO("pOWER TRCWEF0" << GetPowerDbm(txVector.GetTxPowerLevel()));
 
   StartTx (newPacket, txVector, txDuration);
 

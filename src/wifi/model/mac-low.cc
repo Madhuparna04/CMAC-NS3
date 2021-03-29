@@ -2353,6 +2353,7 @@ MacLow::SendDataAfterHrf (Time duration, Mac48Address helperNode)
     SetAckTimeout(Seconds (30));
     StartDataTxTimers (m_currentTxVector);
     m_currentPacket->SetDuration (duration);
+    
     NS_LOG_INFO("Power for data transmission ++++++++++++++++++++++++++++++++" + std::to_string(m_currentTxVector.GetTxPowerLevel()));
     ForwardDown (m_currentPacket, m_currentTxVector);
 }
