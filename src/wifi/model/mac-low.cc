@@ -866,6 +866,8 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
 
 
             }
+
+          // node hears RTS, becomes helper and waits for CTS to send HRF
           else if (hdr.GetAddr1 () != m_self)
           {
               NS_LOG_INFO(" Can help with HRF .......................");
@@ -883,8 +885,12 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
   {
       NS_LOG_INFO("ACK HEREEEEEEEEEEEE.......");
   }*/
-  else if(hdr.IsHrf () && hdr.GetAddr1 () == m_self)
-  {
+
+  else if (hdr.IsHrf ()) {
+
+    // Source recieved HRF from helper, getting ready to transmit
+    if (hdr.GetAddr1 () == m_self)
+    {
       NS_LOG_INFO(" HRF Packet received ");
       this->source = m_self;
       this->relay = hdr.GetAddr2();
@@ -903,17 +909,20 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       m_sendDataEvent = Simulator::Schedule (GetSifs (),
                                              &MacLow::SendDataAfterHrf, this,
                                              hdr.GetDuration (), hdr.GetAddr2 ());
-  }
+    }
 
-  else if(hdr.IsHrf () && hdr.GetAddr3 () == m_self)
-  {
+    // destination recieved HRF from helper, getting ready to transmit
+    else if (hdr.GetAddr3 () == m_self)
+    {
       NS_LOG_INFO(" HRF Packet received at destination");
       // receive data from relay node.
       this->source = hdr.GetAddr1();
       this->relay = hdr.GetAddr2();
       this->destination = hdr.GetAddr3();
       SetReceiveDataHRF(hdr.GetAddr1(), hdr.GetAddr2());
+    }
   }
+
   else if (hdr.IsCts ()
            && hdr.GetAddr1 () == m_self
            && m_ctsTimeoutEvent.IsRunning ()
@@ -943,12 +952,22 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
                              );
 
     }
+
+  // CTS overheard by non source node
   else if(hdr.IsCts() && hdr.GetAddr1 () != m_self )
   {
       NS_LOG_INFO(" Overheard CTS  ................." );
+
+      // check if helper node can transmit HRF, wait for backoffutilityfunctiontime
       if (GetHelpHRF(hdr.GetAddr2(), hdr.GetAddr1())){
           NS_LOG_INFO("Can help with HRF and sending  ................." );
-          Simulator::Schedule (GetSifs (),
+
+          Ptr<UniformRandomVariable> rand = CreateObject<UniformRandomVariable> ();
+          Time backoffUtilityFunctionTime = Time(rand->GetInteger ());
+
+          NS_LOG_INFO("Backoff time for helper node" << backoffUtilityFunctionTime);
+
+          Simulator::Schedule (backoffUtilityFunctionTime,
                                                 &MacLow::SendHrf, this,
                                                 hdr.GetAddr1 (),
                                                 this->destination,
@@ -2353,7 +2372,7 @@ MacLow::SendDataAfterHrf (Time duration, Mac48Address helperNode)
     SetAckTimeout(Seconds (30));
     StartDataTxTimers (m_currentTxVector);
     m_currentPacket->SetDuration (duration);
-    
+
     NS_LOG_INFO("Power for data transmission ++++++++++++++++++++++++++++++++" + std::to_string(m_currentTxVector.GetTxPowerLevel()));
     ForwardDown (m_currentPacket, m_currentTxVector);
 }
