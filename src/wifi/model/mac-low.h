@@ -521,6 +521,7 @@ private:
    bool helpHrf = false;
    bool helpReceived = false;
    bool receiveDataHRF = false;
+   bool isHrfReceived =false;
 
   /**
    * Cancel all scheduled events. Called before beginning a transmission

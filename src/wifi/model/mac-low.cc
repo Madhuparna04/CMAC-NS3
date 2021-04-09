@@ -22,6 +22,8 @@
  */
 
 #include "ns3/simulator.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "ns3/log.h"
 #include "mac-low.h"
 #include "qos-txop.h"
@@ -835,6 +837,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
   NotifyNav (packet, hdr);
   if (hdr.IsRts ())
     {
+      
       /* see section 9.2.5.7 802.11-1999
        * A STA that is addressed by an RTS frame shall transmit a CTS frame after a SIFS
        * period if the NAV at the STA receiving the RTS frame indicates that the medium is
@@ -850,6 +853,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
           if (isPrevNavZero
               && hdr.GetAddr1 () == m_self)
             {
+              isHrfReceived = false;
               NS_LOG_DEBUG ("rx RTS from=" << hdr.GetAddr2 () << ", schedule CTS");
               NS_ASSERT (m_sendCtsEvent.IsExpired ());
               m_stationManager->ReportRxOk (hdr.GetAddr2 (), &hdr,
@@ -886,12 +890,15 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
       NS_LOG_INFO("ACK HEREEEEEEEEEEEE.......");
   }*/
 
-  else if (hdr.IsHrf ()) {
+  else if (hdr.IsHrf () && isHrfReceived == false) {
+   
 
     // Source recieved HRF from helper, getting ready to transmit
     if (hdr.GetAddr1 () == m_self)
     {
+       isHrfReceived = true;
       NS_LOG_INFO(" HRF Packet received ");
+      
       this->source = m_self;
       this->relay = hdr.GetAddr2();
       this->destination = hdr.GetAddr3();
@@ -914,6 +921,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
     // destination recieved HRF from helper, getting ready to transmit
     else if (hdr.GetAddr3 () == m_self)
     {
+       isHrfReceived = true;
       NS_LOG_INFO(" HRF Packet received at destination");
       // receive data from relay node.
       this->source = hdr.GetAddr1();
@@ -928,7 +936,7 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
            && m_ctsTimeoutEvent.IsRunning ()
            && m_currentPacket != 0)
     {
-
+isHrfReceived = false;
       if (ampduSubframe)
         {
           NS_FATAL_ERROR ("Received CTS as part of an A-MPDU");
@@ -963,11 +971,15 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiTxVector txVector, bool
           NS_LOG_INFO("Can help with HRF and sending  ................." );
 
           Ptr<UniformRandomVariable> rand = CreateObject<UniformRandomVariable> ();
-          Time backoffUtilityFunctionTime = Time(rand->GetInteger ());
-
+          
+          Time backoffUtilityFunctionTime = Time(1000 * rand->GetInteger ());
+          //Time backoffUtilityFunctionTime = Time(1000);
+          int rad = std::rand ();
+          rad = rad%1000;
+          NS_LOG_INFO ("Random number" << rad);
           NS_LOG_INFO("Backoff time for helper node" << backoffUtilityFunctionTime);
-
-          Simulator::Schedule (backoffUtilityFunctionTime,
+//+ 10 * backoffUtilityFunctionTime
+          Simulator::Schedule (GetSifs (),
                                                 &MacLow::SendHrf, this,
                                                 hdr.GetAddr1 (),
                                                 this->destination,
