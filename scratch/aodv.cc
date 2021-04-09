@@ -126,7 +126,7 @@ int main (int argc, char **argv)
 
 //-----------------------------------------------------------------------------
 AodvExample::AodvExample () :
-  size (4),
+  size (10),
   step (2),
   totalTime (100),
   pcap (true),
@@ -166,7 +166,7 @@ AodvExample::Run ()
 
   Simulator::Stop (Seconds (totalTime));
 for( uint32_t i = 0 ; i < size ; ++i) {
-    std::cout << "Energy at node : " << i;
+    std::cout << "Energy at node : " << i << " ";
     std::cout << sources.Get(i)->GetRemainingEnergy() << " ";
     std::cout << std::endl;
 }
@@ -174,7 +174,7 @@ for( uint32_t i = 0 ; i < size ; ++i) {
 
 double sum = 0;
 for( uint32_t i = 0 ; i < size; ++i) {
-    std::cout << "Energy at node : " << i;
+    std::cout << "Energy at node : " << i << " ";
     std::cout << sources.Get(i)->GetRemainingEnergy() << " ";
     std::cout << std::endl;
     sum += sources.Get(i)->GetRemainingEnergy();
