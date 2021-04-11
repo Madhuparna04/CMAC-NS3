@@ -32,6 +32,7 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/wifi-radio-energy-model-helper.h"
 #include "ns3/basic-energy-source-helper.h"
+#include "ns3/flow-monitor-module.h"
 
 
 using namespace ns3;
@@ -85,6 +86,10 @@ private:
   /// Print routes if true
   bool printRoutes;
 
+  uint32_t SentPackets = 0;
+  uint32_t ReceivedPackets = 0;
+  uint32_t LostPackets = 0;
+
   // network
   /// nodes used in the example
   NodeContainer nodes;
@@ -93,7 +98,10 @@ private:
   /// interfaces used in the example
   Ipv4InterfaceContainer interfaces;
 
-    EnergySourceContainer sources;
+  EnergySourceContainer energySources;
+
+  FlowMonitorHelper flowmon;
+  Ptr<FlowMonitor> monitor;
 
 private:
   /// Create the nodes
@@ -104,6 +112,8 @@ private:
   void InstallInternetStack ();
   /// Create the simulation applications
   void InstallApplications ();
+  /// FlowMonitor statistics
+  void PrintFlowMonitorStats ();
 
   int num_nodes = 0;
 };
@@ -114,13 +124,13 @@ int main (int argc, char **argv)
   if (!test.Configure (argc, argv))
     NS_FATAL_ERROR ("Configuration failed. Aborted.");
 
-    LogComponentEnable ("YansWifiPhy", LOG_LEVEL_ALL);
-    LogComponentEnable ("WifiPhy", LOG_LEVEL_ALL);
+//  LogComponentEnable ("YansWifiPhy", LOG_LEVEL_ALL);
+//  LogComponentEnable ("WifiPhy", LOG_LEVEL_ALL);
 
-    
+  NS_LOG_UNCOND("Run Simulation.");
 
   test.Run ();
-  test.Report (std::cout);
+//  test.Report (std::cout);
   return 0;
 }
 
@@ -165,23 +175,22 @@ AodvExample::Run ()
   std::cout << "Starting simulation for " << totalTime << " s ...\n";
 
   Simulator::Stop (Seconds (totalTime));
-for( uint32_t i = 0 ; i < size ; ++i) {
-    std::cout << "Energy at node : " << i << " ";
-    std::cout << sources.Get(i)->GetRemainingEnergy() << " ";
-    std::cout << std::endl;
-}
+
+  for(uint32_t i = 0 ; i < size ; ++i) {
+      std::cout << "Energy at node : " << i << " " << energySources.Get(i)->GetRemainingEnergy() << " " << std::endl;
+  }
   Simulator::Run ();
 
-double sum = 0;
-for( uint32_t i = 0 ; i < size; ++i) {
-    std::cout << "Energy at node : " << i << " ";
-    std::cout << sources.Get(i)->GetRemainingEnergy() << " ";
-    std::cout << std::endl;
-    sum += sources.Get(i)->GetRemainingEnergy();
-}
- std::cout<<"Average energy = " << sum/size << std::endl;
+  PrintFlowMonitorStats();
 
-  Simulator::Destroy ();
+  double sum = 0;
+  for(uint32_t i = 0 ; i < size; ++i) {
+      std::cout << "Energy at node : " << i << " " << energySources.Get(i)->GetRemainingEnergy() << " " << std::endl;
+      sum += energySources.Get(i)->GetRemainingEnergy();
+  }
+   std::cout << "Average energy = " << sum/size << std::endl;
+
+//  Simulator::Destroy ();
 }
 
 void
@@ -228,24 +237,19 @@ AodvExample::CreateDevices ()
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("OfdmRate6Mbps"), "RtsCtsThreshold", UintegerValue (0));
   devices = wifi.Install (wifiPhy, wifiMac, nodes);
 
+  // Energy Sources
+  BasicEnergySourceHelper basicSourceHelper;
+  basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100));
+  this->energySources = basicSourceHelper.Install (this->nodes);
+  WifiRadioEnergyModelHelper radioEnergyHelper;
+  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.0174));
+  DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install (devices, energySources);
 
-    BasicEnergySourceHelper basicSourceHelper; ////Creates a BasicEnergySource (inherits from EnergySource class) object. BasicEnergySource decreases/increases remaining energy stored in itself in linearly. Energy source base class:This is the base class for energy sources. Energy sources keep track of remaining energy. Device energy models will be updating the remaining energy in the energy source. The energy source itself does not update the remaining energy. Energy source also keeps a list of device energy models installed on the same node. When the remaining energy level reaches 0, the energy source will notify all device energy models stored in the list.
-    // configure energy source
-    basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100)); //Initial energy stored in basic energy source. set with class: ns3::DoubleValue. Initial value: 10
-    // install source
-    this->sources = basicSourceHelper.Install (this->nodes); //EnergySourceHelper returns a list of EnergySource pointers installed onto a node. Users can use this list to access EnergySource objects to obtain total energy consumption on a node easily
-    /* device energy model */
-    WifiRadioEnergyModelHelper radioEnergyHelper;
-    // configure radio energy model
-    radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.0174));
-    // install device model
-    DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install (devices, sources);
+  if (pcap) {
+    wifiPhy.EnablePcapAll (std::string ("aodv"));
+  }
 
-
-  if (pcap)
-    {
-      wifiPhy.EnablePcapAll (std::string ("aodv"));
-    }
+  monitor = flowmon.InstallAll();
 }
 
 void
@@ -283,3 +287,81 @@ AodvExample::InstallApplications ()
   //Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
 }
 
+void
+AodvExample::PrintFlowMonitorStats ()
+{
+  int j = 0;
+  float AvgThroughput = 0;
+  Time Jitter;
+  Time Delay;
+
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+  std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator iter = stats.begin ();
+       iter != stats.end (); ++iter)
+    {
+      Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (iter->first);
+
+      NS_LOG_UNCOND ("----Flow ID:" << iter->first);
+      NS_LOG_UNCOND ("Src Addr" << t.sourceAddress << "Dst Addr " << t.destinationAddress);
+      NS_LOG_UNCOND ("Sent Packets=" << iter->second.txPackets);
+      NS_LOG_UNCOND ("Received Packets =" << iter->second.rxPackets);
+      NS_LOG_UNCOND ("Lost Packets =" << iter->second.txPackets - iter->second.rxPackets);
+      if (iter->second.txPackets > 0)
+        {
+          NS_LOG_UNCOND ("Packet delivery ratio ="
+                         << iter->second.rxPackets * 100 / iter->second.txPackets << "%");
+          NS_LOG_UNCOND ("Packet loss ratio ="
+                         << (iter->second.txPackets - iter->second.rxPackets) * 100 /
+                                iter->second.txPackets
+                         << "%");
+        }
+      else
+        {
+          NS_LOG_UNCOND ("Packet delivery ratio =0%");
+          NS_LOG_UNCOND ("Packet loss ratio =0%");
+        }
+      NS_LOG_UNCOND ("Delay =" << iter->second.delaySum);
+      NS_LOG_UNCOND ("Jitter =" << iter->second.jitterSum);
+      NS_LOG_UNCOND ("Throughput =" << iter->second.rxBytes * 8.0 /
+                                           (iter->second.timeLastRxPacket.GetSeconds () -
+                                            iter->second.timeFirstTxPacket.GetSeconds ()) /
+                                           1024
+                                    << "Kbps");
+
+      SentPackets = SentPackets + (iter->second.txPackets);
+      ReceivedPackets = ReceivedPackets + (iter->second.rxPackets);
+      LostPackets = LostPackets + (iter->second.txPackets - iter->second.rxPackets);
+      AvgThroughput = AvgThroughput + (iter->second.rxBytes * 8.0 /
+                                       (iter->second.timeLastRxPacket.GetSeconds () -
+                                        iter->second.timeFirstTxPacket.GetSeconds ()) /
+                                       1024);
+      Delay = Delay + (iter->second.delaySum);
+      Jitter = Jitter + (iter->second.jitterSum);
+
+      j = j + 1;
+    }
+
+  AvgThroughput = AvgThroughput / j;
+  NS_LOG_UNCOND ("--------Total Results of the simulation----------" << std::endl);
+  NS_LOG_UNCOND ("Total sent packets  =" << SentPackets);
+  NS_LOG_UNCOND ("Total Received Packets =" << ReceivedPackets);
+  NS_LOG_UNCOND ("Total Lost Packets =" << LostPackets);
+  if (SentPackets > 0)
+    {
+      NS_LOG_UNCOND ("Packet Loss ratio =" << ((LostPackets * 100) / SentPackets) << "%");
+      NS_LOG_UNCOND ("Packet delivery ratio =" << ((ReceivedPackets * 100) / SentPackets) << "%");
+    }
+  else
+    {
+      NS_LOG_UNCOND ("Packet Loss ratio =0%");
+      NS_LOG_UNCOND ("Packet delivery ratio =0%");
+    }
+  NS_LOG_UNCOND ("Average Throughput =" << AvgThroughput << "Kbps");
+  NS_LOG_UNCOND ("End to End Delay =" << Delay);
+  NS_LOG_UNCOND ("End to End Jitter delay =" << Jitter);
+  NS_LOG_UNCOND ("Total Flow id " << j);
+
+   monitor->SerializeToXmlFile("manet_project.xml", true, true);
+}
