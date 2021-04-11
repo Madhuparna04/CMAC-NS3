@@ -228,19 +228,20 @@ AodvExample::CreateDevices ()
   wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("OfdmRate6Mbps"), "RtsCtsThreshold", UintegerValue (0));
   devices = wifi.Install (wifiPhy, wifiMac, nodes);
 
+  BasicEnergySourceHelper basicSourceHelper; ////Creates a BasicEnergySource (inherits from EnergySource class) object. BasicEnergySource decreases/increases remaining energy stored in itself in linearly. Energy source base class:This is the base class for energy sources. Energy sources keep track of remaining energy. Device energy models will be updating the remaining energy in the energy source. The energy source itself does not update the remaining energy. Energy source also keeps a list of device energy models installed on the same node. When the remaining energy level reaches 0, the energy source will notify all device energy models stored in the list.
+  // configure energy source
+  basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100)); //Initial energy stored in basic energy source. set with class: ns3::DoubleValue. Initial value: 10
+  // install source
+  this->sources = basicSourceHelper.Install (this->nodes); //EnergySourceHelper returns a list of EnergySource pointers installed onto a node. Users can use this list to access EnergySource objects to obtain total energy consumption on a node easily
+  /* device energy model */
+  WifiRadioEnergyModelHelper radioEnergyHelper;
+  // configure radio energy model
+  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.0174));
+  // install device model
+  DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install (devices, sources);
 
-    BasicEnergySourceHelper basicSourceHelper; ////Creates a BasicEnergySource (inherits from EnergySource class) object. BasicEnergySource decreases/increases remaining energy stored in itself in linearly. Energy source base class:This is the base class for energy sources. Energy sources keep track of remaining energy. Device energy models will be updating the remaining energy in the energy source. The energy source itself does not update the remaining energy. Energy source also keeps a list of device energy models installed on the same node. When the remaining energy level reaches 0, the energy source will notify all device energy models stored in the list.
-    // configure energy source
-    basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100)); //Initial energy stored in basic energy source. set with class: ns3::DoubleValue. Initial value: 10
-    // install source
-    this->sources = basicSourceHelper.Install (this->nodes); //EnergySourceHelper returns a list of EnergySource pointers installed onto a node. Users can use this list to access EnergySource objects to obtain total energy consumption on a node easily
-    /* device energy model */
-    WifiRadioEnergyModelHelper radioEnergyHelper;
-    // configure radio energy model
-    radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.0174));
-    // install device model
-    DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install (devices, sources);
-
+  AsciiTraceHelper ascii;
+  wifiPhy.EnableAsciiAll (ascii.CreateFileStream ("project_extra/manet_project.tr"));
 
   if (pcap)
     {
