@@ -86,9 +86,15 @@ private:
   /// Print routes if true
   bool printRoutes;
 
+  uint32_t port = 9;
+  uint32_t bytesTotal = 0;
+  uint32_t packetsReceived = 0;
+
   uint32_t SentPackets = 0;
   uint32_t ReceivedPackets = 0;
   uint32_t LostPackets = 0;
+
+  int num_nodes = 0;
 
   // network
   /// nodes used in the example
@@ -103,7 +109,6 @@ private:
   FlowMonitorHelper flowmon;
   Ptr<FlowMonitor> monitor;
 
-private:
   /// Create the nodes
   void CreateNodes ();
   /// Create the devices
@@ -115,7 +120,10 @@ private:
   /// FlowMonitor statistics
   void PrintFlowMonitorStats ();
 
-  int num_nodes = 0;
+  void ReceivePacket(Ptr<Socket> socket);
+  void CheckThroughput();
+  void CollectPacketStatistics ();
+  Ptr<Socket> SetupPacketReceive(Ipv4Address addr, Ptr<Node> node);
 };
 
 int main (int argc, char **argv)
@@ -171,9 +179,11 @@ AodvExample::Run ()
   CreateDevices ();
   InstallInternetStack ();
   InstallApplications ();
+  CollectPacketStatistics ();
+  monitor = flowmon.InstallAll();
+  CheckThroughput();
 
   std::cout << "Starting simulation for " << totalTime << " s ...\n";
-
   Simulator::Stop (Seconds (totalTime));
 
   for(uint32_t i = 0 ; i < size ; ++i) {
@@ -196,6 +206,51 @@ AodvExample::Run ()
 void
 AodvExample::Report (std::ostream &)
 { 
+}
+
+//Receiving packets
+void
+AodvExample::ReceivePacket(Ptr<Socket> socket)
+{
+  Ptr<Packet> packet;
+  Address senderAddress;
+  while ((packet = socket->RecvFrom(senderAddress)))
+  {
+    bytesTotal += packet->GetSize();
+    packetsReceived += 1;
+//    NS_LOG_UNCOND(PrintReceivedPacket(socket, packet, senderAddress));
+  }
+}
+//txp is transmission power
+void
+AodvExample::CheckThroughput()
+{
+  double kbs = (bytesTotal * 8.0) / 1000;
+  bytesTotal = 0;
+
+  std::ofstream out("manet_project.csv", std::ios::app);
+
+  out << (Simulator::Now()).GetSeconds() << ","
+      << kbs << ","
+      << packetsReceived << ","
+      << std::endl;
+
+  out.close();
+  packetsReceived = 0;
+  Simulator::Schedule(Seconds(1.0), &AodvExample::CheckThroughput, this);
+}
+
+//set up function for receiving the packet. Binding sockets
+Ptr<Socket>
+AodvExample::SetupPacketReceive(Ipv4Address addr, Ptr<Node> node)
+{
+  TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
+  Ptr<Socket> sink = Socket::CreateSocket(node, tid);
+  InetSocketAddress local = InetSocketAddress(addr, port);
+  sink->Bind(local);
+  sink->SetRecvCallback(MakeCallback(&AodvExample::ReceivePacket, this)); // SetupPacketReceive will call ReceivePacket function
+
+  return sink;
 }
 
 void
@@ -248,8 +303,6 @@ AodvExample::CreateDevices ()
   if (pcap) {
     wifiPhy.EnablePcapAll (std::string ("aodv"));
   }
-
-  monitor = flowmon.InstallAll();
 }
 
 void
@@ -274,9 +327,11 @@ AodvExample::InstallInternetStack ()
 void
 AodvExample::InstallApplications ()
 {
+  // Ping to last node
   V4PingHelper ping (interfaces.GetAddress (size - 1));
   ping.SetAttribute ("Verbose", BooleanValue (true));
 
+  // First Node
   ApplicationContainer p = ping.Install (nodes.Get (0));
   p.Start (Seconds (0));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
@@ -285,6 +340,15 @@ AodvExample::InstallApplications ()
   //Ptr<Node> node = nodes.Get (size/2);
   //Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
   //Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
+}
+
+void
+AodvExample::CollectPacketStatistics ()
+{
+  for (int i = 0; i < num_nodes; i++)
+  {
+    Ptr<Socket> sink = SetupPacketReceive(interfaces.GetAddress(i), nodes.Get(i));
+  }
 }
 
 void
@@ -363,5 +427,5 @@ AodvExample::PrintFlowMonitorStats ()
   NS_LOG_UNCOND ("End to End Jitter delay =" << Jitter);
   NS_LOG_UNCOND ("Total Flow id " << j);
 
-   monitor->SerializeToXmlFile("manet_project.xml", true, true);
+  monitor->SerializeToXmlFile("manet_project.xml", true, true);
 }
